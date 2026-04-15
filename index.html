@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>セルフドクター 〜自己診断ツール for HTグループ〜</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Zen+Antique+Soft&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --teal:       #00a896;
+  --teal-dark:  #007a6e;
+  --teal-light: #d4f4f0;
+  --bg:         #f4f7f5;
+  --white:      #ffffff;
+  --ink:        #1a2e2a;
+  --muted:      #7a9990;
+  --warm:       #f9f4ef;
+  --accent:     #e85d4a;
+  --yellow:     #f5c842;
+  --shadow:     0 20px 60px rgba(0,80,70,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Serif JP', serif;
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  position: relative;
+  overflow-x: hidden;
+}
+body::before, body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 0;
+}
+body::before { width:500px; height:500px; background:var(--teal); top:-150px; right:-100px; }
+body::after  { width:400px; height:400px; background:#00c9b1;    bottom:-100px; left:-100px; }
+
+#app { position: relative; z-index: 1; width: 100%; max-width: 480px; }
+
+/* ── Brand ── */
+.brand { text-align:center; margin-bottom:24px; animation: fadeDown .6s ease both; }
+.brand-icon {
+  width:52px; height:52px; background:var(--teal); border-radius:16px;
+  display:inline-flex; align-items:center; justify-content:center;
+  margin-bottom:10px; box-shadow:0 8px 24px rgba(0,168,150,.35);
+}
+.brand-icon svg { width:28px; height:28px; }
+.brand h1 {
+  font-family:'Zen Antique Soft',serif;
+  font-size:1.7rem; color:var(--ink); letter-spacing:.08em;
+}
+.brand-sub {
+  font-size:.78rem; color:var(--muted);
+  letter-spacing:.05em; margin-top:5px;
+}
+
+/* ── Card ── */
+.card {
+  background:var(--white); border-radius:28px; padding:32px 28px;
+  box-shadow:var(--shadow); border:1px solid rgba(0,168,150,.08);
+}
+
+/* ── Progress ── */
+.prog-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.q-label   { font-family:'DM Mono',monospace; font-size:.72rem; letter-spacing:.1em; }
+.q-fraction{ font-family:'DM Mono',monospace; font-size:.72rem; color:var(--muted); }
+.prog-track { width:100%; height:6px; background:#edf2f0; border-radius:10px; overflow:hidden; margin-bottom:28px; }
+#prog-fill {
+  height:100%;
+  background:linear-gradient(90deg,var(--teal-dark),var(--teal),#00d4c0);
+  border-radius:10px;
+  transition:width .45s cubic-bezier(.4,0,.2,1);
+  width:3.7%;
+}
+
+/* ── Question ── */
+#q-text {
+  font-size:1.1rem; color:var(--ink); line-height:1.85;
+  min-height:4.5em; margin-bottom:24px;
+}
+.q-enter { animation: fadeUp .3s ease both; }
+
+/* ── Answer buttons ── */
+.btn-group { display:flex; flex-direction:column; gap:8px; }
+
+.answer-btn {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 18px;
+  border:1.5px solid #e8eeec;
+  border-radius:14px;
+  background:var(--white);
+  cursor:pointer;
+  font-family:'Noto Serif JP',serif; font-size:.88rem;
+  color:var(--ink); text-align:left;
+  transition:border-color .15s, background .15s, transform .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.answer-btn:hover {
+  border-color:var(--teal);
+  background:var(--teal-light);
+  transform:translateX(3px);
+}
+.answer-btn:active {
+  background:var(--teal-light);
+  border-color:var(--teal);
+}
+.answer-btn:disabled,
+.answer-btn[disabled] {
+  cursor:default;
+  opacity:.45;
+  transform:none !important;
+  background:var(--white) !important;
+  border-color:#e8eeec !important;
+}
+.answer-btn.chosen {
+  border-color:var(--teal);
+  background:var(--teal-light);
+  transform:translateX(3px);
+  opacity:.75;
+}
+
+.btn-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.dot-5 { background:var(--accent); }
+.dot-4 { background:var(--yellow); }
+.dot-3 { background:#aaa; }
+.dot-2 { background:#7EC8C0; }
+.dot-1 { background:var(--teal); }
+
+/* ── Result ── */
+#result-area { display:none; text-align:center; animation:fadeUp .5s ease both; }
+
+.gauge-wrap { position:relative; width:160px; height:160px; margin:0 auto 18px; }
+.gauge-svg  { width:160px; height:160px; transform:rotate(-90deg); }
+.gauge-bg   { fill:none; stroke:#edf2f0; stroke-width:12; }
+.gauge-fill { fill:none; stroke-width:12; stroke-linecap:round;
+  transition:stroke-dashoffset 1.3s cubic-bezier(.4,0,.2,1); }
+.gauge-center {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%); text-align:center;
+}
+.score-big { font-family:'DM Mono',monospace; font-size:2.6rem; font-weight:500; color:var(--ink); line-height:1; }
+.score-max { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--muted); }
+
+/* 5-segment stage bar */
+.stage-meter {
+  display:flex; gap:4px; padding:6px;
+  background:#f0f4f2; border-radius:10px; margin-bottom:18px;
+}
+.stage-seg { flex:1; height:8px; border-radius:6px; background:#dde8e5; transition:background .5s; }
+.stage-seg.lit-1 { background:#c0392b; }
+.stage-seg.lit-2 { background:#e67e22; }
+.stage-seg.lit-3 { background:#e0b800; }
+.stage-seg.lit-4 { background:#2ecc71; }
+.stage-seg.lit-5 { background:#00a896; }
+
+.result-badge {
+  display:inline-block; padding:9px 26px; border-radius:100px;
+  font-family:'Zen Antique Soft',serif; font-size:1.1rem;
+  letter-spacing:.08em; margin-bottom:14px; border:2px solid;
+}
+#result-desc {
+  font-size:.9rem; color:#4a6660; line-height:1.9;
+  padding:18px; background:var(--warm); border-radius:16px;
+  margin-bottom:22px; text-align:left;
+}
+
+/* Breakdown */
+.breakdown { text-align:left; margin-bottom:22px; }
+.breakdown-title {
+  font-family:'DM Mono',monospace; font-size:.65rem;
+  letter-spacing:.14em; color:var(--muted); margin-bottom:12px;
+}
+.breakdown-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+.br-label { font-size:.74rem; color:var(--ink); width:88px; flex-shrink:0; line-height:1.3; }
+.br-track { flex:1; height:8px; background:#edf2f0; border-radius:10px; overflow:hidden; }
+.br-fill  { height:100%; border-radius:10px; transition:width 1s ease .4s; }
+.br-score { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--muted); width:36px; text-align:right; }
+
+.retry-btn {
+  width:100%; padding:16px; background:var(--teal); color:#fff; border:none;
+  border-radius:14px; font-family:'Noto Serif JP',serif; font-size:.95rem;
+  cursor:pointer; letter-spacing:.05em; transition:all .2s;
+  box-shadow:0 8px 20px rgba(0,168,150,.3);
+}
+.retry-btn:hover { background:var(--teal-dark); transform:translateY(-2px); }
+
+@keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeUp   { from{opacity:0;transform:translateY(14px)}  to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Brand -->
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 28 28" fill="none">
+        <path d="M14 4C9.03 4 5 8.03 5 13c0 4.97 4.03 9 9 9s9-4.03 9-9c0-4.97-4.03-9-9-9z" fill="white" opacity=".25"/>
+        <path d="M14 8v10M9 13h10" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1>セルフドクター</h1>
+    <p class="brand-sub">〜自己診断ツール for HTグループ〜</p>
+  </div>
+
+  <div class="card">
+
+    <!-- Quiz -->
+    <div id="quiz-area">
+      <div class="prog-header">
+        <span class="q-label" id="cat-label">CURRENT</span>
+        <span class="q-fraction" id="q-count">01 / 27</span>
+      </div>
+      <div class="prog-track"><div id="prog-fill"></div></div>
+      <h2 id="q-text"></h2>
+      <div class="btn-group" id="btn-group"></div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-area">
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 160 160">
+          <circle class="gauge-bg"   cx="80" cy="80" r="64"/>
+          <circle class="gauge-fill" cx="80" cy="80" r="64"
+                  id="gauge-arc" stroke-dasharray="402" stroke-dashoffset="402"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="score-big" id="score-num">0</div>
+          <div class="score-max">/ 100</div>
+        </div>
+      </div>
+
+      <div class="stage-meter">
+        <div class="stage-seg" id="seg1"></div>
+        <div class="stage-seg" id="seg2"></div>
+        <div class="stage-seg" id="seg3"></div>
+        <div class="stage-seg" id="seg4"></div>
+        <div class="stage-seg" id="seg5"></div>
+      </div>
+
+      <div class="result-badge" id="result-badge">—</div>
+      <p id="result-desc"></p>
+
+      <div class="breakdown">
+        <div class="breakdown-title">SCORE BREAKDOWN</div>
+        <div class="breakdown-row">
+          <span class="br-label">現状の行動<br><small style="color:var(--muted);font-size:.65rem;">逆転スコア</small></span>
+          <div class="br-track"><div class="br-fill" id="bar-A" style="background:#e85d4a;width:0%"></div></div>
+          <span class="br-score" id="sc-A">—</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="br-label">理想・志向</span>
+          <div class="br-track"><div class="br-fill" id="bar-B" style="background:#7c6fcd;width:0%"></div></div>
+          <span class="br-score" id="sc-B">—</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="br-label">回避行動<br><small style="color:var(--muted);font-size:.65rem;">逆転スコア</small></span>
+          <div class="br-track"><div class="br-fill" id="bar-C" style="background:#d4a017;width:0%"></div></div>
+          <span class="br-score" id="sc-C">—</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="br-label">主体的行動</span>
+          <div class="br-track"><div class="br-fill" id="bar-D" style="background:#00a896;width:0%"></div></div>
+          <span class="br-score" id="sc-D">—</span>
+        </div>
+      </div>
+
+      <button class="retry-btn" id="retry-btn">↩ もう一度診断する</button>
+    </div>
+
+  </div><!-- .card -->
+</div><!-- #app -->
+
+<script>
+/* ════════════════════════════════════════════════
+   DATA
+════════════════════════════════════════════════ */
+const QUESTIONS = [
+  { text:"先輩や上司の指示を優先して行動している",              cat:"A" },
+  { text:"正解を探してから動くことが多い",                      cat:"A" },
+  { text:"自分から意見を言うのが不安だ",                        cat:"A" },
+  { text:"失敗を避けることを最優先にしている",                  cat:"A" },
+  { text:"職場の空気を壊さないことを重視している",              cat:"A" },
+  { text:"疑問があっても質問できないことがある",                cat:"A" },
+  { text:"注意や指摘をするのは避けている",                      cat:"A" },
+  { text:"「自分は主体的に動ける人になりたい」と思っている",    cat:"B" },
+  { text:"正しいと思ったことは伝えられる人になりたいと思っている", cat:"B" },
+  { text:"後輩を支えられる存在になりたいと思っている",          cat:"B" },
+  { text:"現場をより良くできる人になりたいと思っている",        cat:"B" },
+  { text:"問題に気づいたら改善したいと思っている",              cat:"B" },
+  { text:"周囲に良い影響を与えたいと思っている",                cat:"B" },
+  { text:"気づいても「まあいいか」と流すことがある",            cat:"C" },
+  { text:"忙しさを理由に改善を後回しにすることがある",          cat:"C" },
+  { text:"若手に注意することを避けることがある",                cat:"C" },
+  { text:"自分が一歩出なくても仕事は回ると思うことがある",      cat:"C" },
+  { text:"波風を立てない選択をすることが増えた",                cat:"C" },
+  { text:"役割外のことには関わらないようにしている",            cat:"C" },
+  { text:"問題を見ても「誰かがやる」と思うことがある",          cat:"C" },
+  { text:"周囲が働きやすくなるよう意識している",               cat:"D" },
+  { text:"若手が相談しやすい雰囲気を作ろうとしている",          cat:"D" },
+  { text:"世代間の橋渡し役を意識している",                     cat:"D" },
+  { text:"現場をより良くするために提案している",               cat:"D" },
+  { text:"困っている人を見たら声をかけている",                 cat:"D" },
+  { text:"自分の行動が周囲に影響すると考えている",             cat:"D" },
+  { text:"チームの成功にやりがいを感じる",                     cat:"D" }
+];
+
+const CAT_LABEL = { A:"CURRENT", B:"IDEAL", C:"AVOID", D:"PROACTIVE" };
+const CAT_COLOR = { A:"#e85d4a", B:"#7c6fcd", C:"#d4a017", D:"#00a896" };
+
+const STAGES = [
+  { label:"無動傾向",      color:"#c0392b", border:"#c0392b", bg:"#fff0ee",
+    desc:"現在は組織の中で指示待ち・同調が中心の働き方になっています。それは「安全策」として機能していますが、変化への適応力や自己成長の機会を狭めているかもしれません。まずは小さな「自分から動く」経験を一つ積むことから始めてみましょう。" },
+  { label:"無動↔行動傾向", color:"#c26a00", border:"#e67e22", bg:"#fff7ee",
+    desc:"受動的なスタンスから抜け出そうとする意識が芽生えています。理想はあるけれど行動に踏み出せない葛藤の時期です。「完璧な準備」より「まず一歩」を優先すると、自分の可能性が広がっていきます。" },
+  { label:"行動傾向",      color:"#8a7200", border:"#e0b800", bg:"#fffbeb",
+    desc:"自分なりに動こうとする姿勢が育っています。回避より行動を選ぶ場面が増えてきた段階です。次は「行動の質」を高め、周囲への波及効果を意識することで、さらに大きな変化を生み出せます。" },
+  { label:"行動↔感動傾向", color:"#1a7a45", border:"#2ecc71", bg:"#edfff5",
+    desc:"主体的に動き、周囲にも良い影響を与え始めています。自分の行動が「感動」へと昇華する手前の段階です。あとは「自分が動く理由」を言語化し、チームへの想いを積極的に伝えてみてください。" },
+  { label:"感動傾向",      color:"#006e61", border:"#00a896", bg:"#e0f7f5",
+    desc:"素晴らしい！主体的な行動が周囲を巻き込み、チームに感動・変革をもたらせるレベルに達しています。あなたの姿勢が職場の文化をつくっています。その影響力をさらに広げていきましょう。" }
+];
+
+/* ════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════ */
+let qIdx  = 0;
+let raw   = { A:0, B:0, C:0, D:0 };
+let busy  = false;
+
+/* ════════════════════════════════════════════════
+   DOM REFS
+════════════════════════════════════════════════ */
+const quizArea  = document.getElementById('quiz-area');
+const resultArea= document.getElementById('result-area');
+const catLabel  = document.getElementById('cat-label');
+const qCount    = document.getElementById('q-count');
+const progFill  = document.getElementById('prog-fill');
+const qText     = document.getElementById('q-text');
+const btnGroup  = document.getElementById('btn-group');
+
+/* ════════════════════════════════════════════════
+   BUTTON MANAGEMENT
+════════════════════════════════════════════════ */
+function buildButtons() {
+  btnGroup.innerHTML = '';
+  const specs = [
+    { pts:5, dot:'dot-5', label:'5　とても当てはまる' },
+    { pts:4, dot:'dot-4', label:'4　やや当てはまる' },
+    { pts:3, dot:'dot-3', label:'3　どちらとも言えない' },
+    { pts:2, dot:'dot-2', label:'2　あまり当てはまらない' },
+    { pts:1, dot:'dot-1', label:'1　まったく当てはまらない' }
+  ];
+  specs.forEach(({ pts, dot, label }) => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.innerHTML = `<span class="btn-dot ${dot}"></span>${label}`;
+    btn.addEventListener('click', () => onAnswer(btn, pts));
+    btnGroup.appendChild(btn);
+  });
+}
+
+/* ════════════════════════════════════════════════
+   SHOW QUESTION
+════════════════════════════════════════════════ */
+function showQuestion() {
+  busy = false;
+
+  const q   = QUESTIONS[qIdx];
+  const pct = ((qIdx + 1) / QUESTIONS.length * 100).toFixed(1);
+
+  qCount.textContent   = String(qIdx + 1).padStart(2,'0') + ' / ' + QUESTIONS.length;
+  progFill.style.width = pct + '%';
+  catLabel.textContent = CAT_LABEL[q.cat];
+  catLabel.style.color = CAT_COLOR[q.cat];
+
+  buildButtons();
+
+  qText.classList.remove('q-enter');
+  void qText.offsetWidth;
+  qText.textContent = q.text;
+  qText.classList.add('q-enter');
+}
+
+/* ════════════════════════════════════════════════
+   HANDLE ANSWER
+════════════════════════════════════════════════ */
+function onAnswer(btn, pts) {
+  if (busy) return;
+  busy = true;
+
+  Array.from(btnGroup.children).forEach(b => {
+    b.disabled = true;
+    b.classList.remove('chosen');
+  });
+  btn.disabled = false;
+  btn.classList.add('chosen');
+
+  const cat = QUESTIONS[qIdx].cat;
+  raw[cat] += (cat === 'A' || cat === 'C') ? (6 - pts) : pts;
+  qIdx++;
+
+  setTimeout(() => {
+    if (qIdx < QUESTIONS.length) {
+      showQuestion();
+    } else {
+      showResult();
+    }
+  }, 380);
+}
+
+/* ════════════════════════════════════════════════
+   SCORING  (0–100)
+════════════════════════════════════════════════ */
+function calcScore() {
+  const pA = (raw.A - 7) / 28 * 20;
+  const pB = (raw.B - 6) / 24 * 20;
+  const pC = (raw.C - 7) / 28 * 20;
+  const pD = (raw.D - 7) / 28 * 40;
+  return Math.round(Math.max(0, Math.min(100, pA + pB + pC + pD)));
+}
+
+/* ════════════════════════════════════════════════
+   SHOW RESULT
+════════════════════════════════════════════════ */
+function showResult() {
+  quizArea.style.display  = 'none';
+  resultArea.style.display = 'block';
+
+  const score    = calcScore();
+  const stageIdx = score <= 20 ? 0 : score <= 40 ? 1 : score <= 60 ? 2 : score <= 80 ? 3 : 4;
+  const stage    = STAGES[stageIdx];
+
+  let n = 0;
+  const iv = setInterval(() => {
+    n = Math.min(n + Math.ceil(score / 32), score);
+    document.getElementById('score-num').textContent = n;
+    if (n >= score) clearInterval(iv);
+  }, 28);
+
+  const arc = document.getElementById('gauge-arc');
+  const stageArcColors = ['#c0392b','#e67e22','#e0b800','#2ecc71','#00a896'];
+  arc.style.stroke = stageArcColors[stageIdx];
+  setTimeout(() => {
+    arc.style.strokeDashoffset = 402 - (score / 100) * 402;
+  }, 80);
+
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById('seg'+i).className = 'stage-seg';
+  }
+  setTimeout(() => {
+    document.getElementById('seg' + (stageIdx + 1)).classList.add('lit-' + (stageIdx + 1));
+  }, 350);
+
+  const badge = document.getElementById('result-badge');
+  badge.textContent = stage.label;
+  badge.style.cssText = `color:${stage.color};border-color:${stage.border};background:${stage.bg};`;
+  document.getElementById('result-desc').textContent = stage.desc;
+
+  const pA = Math.round((raw.A - 7) / 28 * 100);
+  const pB = Math.round((raw.B - 6) / 24 * 100);
+  const pC = Math.round((raw.C - 7) / 28 * 100);
+  const pD = Math.round((raw.D - 7) / 28 * 100);
+  [['A',pA],['B',pB],['C',pC],['D',pD]].forEach(([k,pct]) => {
+    document.getElementById('sc-'+k).textContent = Math.max(0,pct) + '%';
+    setTimeout(() => {
+      document.getElementById('bar-'+k).style.width = Math.max(0,pct) + '%';
+    }, 400);
+  });
+}
+
+/* ════════════════════════════════════════════════
+   RETRY
+════════════════════════════════════════════════ */
+document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+
+/* ════════════════════════════════════════════════
+   START
+════════════════════════════════════════════════ */
+showQuestion();
+</script>
+
+</body>
+</html>
